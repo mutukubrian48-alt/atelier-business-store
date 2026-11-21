@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atelier — Business Websites</title>
-  <meta name="description" content="Elegant websites for independent businesses.">
+  <title>Atelier — Cakes, Clothing & Beauty</title>
+  <meta name="description" content="Shop cakes and clothing, explore professional hair styling and nail services, and book with confidence.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Italiana&display=swap" rel="stylesheet">
@@ -109,6 +109,18 @@
     .card-number { font-size: 12px; color: #989b93; padding-top: 6px; }
     .bakery { background: #ede8dc; padding: 96px 0; }
     .bakery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .business-types { background: var(--paper); padding: 82px 0; }
+    .business-type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .business-type-card { background: #ede8dc; padding: 24px; min-height: 150px; display: flex; flex-direction: column; justify-content: space-between; transition: transform .2s, background .2s; }
+    .business-type-card:hover { transform: translateY(-3px); background: var(--sage); }
+    .business-type-card span { color: #777b72; font-size: 13px; line-height: 1.6; }
+    .business-type-card strong { font-family: "Italiana", Georgia, serif; font-size: 27px; font-weight: 400; }
+    .service-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .service-card { background: var(--paper); padding: 22px; display: flex; flex-direction: column; align-items: flex-start; }
+    .service-card img { height: 220px; object-fit: cover; margin-bottom: 18px; }
+    .service-card h3 { margin: 0 0 8px; font-size: 24px; }
+    .service-card p { color: #777b72; line-height: 1.6; font-size: 13px; }
+    .service-card .cake-order { margin-top: auto; padding-top: 16px; }
     .cake-card { background: var(--paper); }
     .cake-image { height: 330px; overflow: hidden; }
     .cake-image img { height: 100%; object-fit: cover; transition: transform .6s ease; filter: saturate(.82); }
@@ -129,6 +141,14 @@
     .role-switch { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
     .role-switch button { border: 0; background: none; padding: 7px 11px; border-radius: 999px; cursor: pointer; color: #777b72; font-size: 12px; }
     .role-switch .nav-auth { background: var(--ink); color: var(--white); }
+    .login-role-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 20px; }
+    .login-role-options button { border: 1px solid var(--line); background: transparent; padding: 12px; cursor: pointer; color: #777b72; }
+    .login-role-options button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--white); }
+    .password-input-wrap { display: flex; align-items: stretch; }
+    .password-input-wrap input { min-width: 0; }
+    .password-toggle { display: inline-flex; align-items: center; justify-content: center; width: 48px; border: 1px solid var(--line); border-left: 0; background: var(--white); color: var(--olive); cursor: pointer; }
+    .password-toggle svg { width: 19px; height: 19px; }
+    .password-toggle:focus-visible, .login-role-options button:focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
     .signed-in-user { font-size: 12px; color: var(--olive); padding: 0 8px; }
     .app-message { position: fixed; right: 20px; bottom: 20px; z-index: 80; max-width: min(420px, calc(100vw - 40px)); padding: 14px 18px; background: var(--ink); color: var(--white); font-size: 13px; box-shadow: 0 8px 30px #1d201b2b; }
     .app-message.error { background: #8c392b; }
@@ -136,6 +156,10 @@
     .host-dashboard.open { display: block; }
     body.admin-mode main > :not(.host-dashboard), body.admin-mode footer,
     body.seller-mode main > :not(.host-dashboard), body.seller-mode footer { display: none; }
+    body.login-page main > :not(.host-dashboard), body.login-page footer { display: none; }
+    body.login-page .nav-links > a { display: none; }
+    body.login-page #login-modal.open { position: relative; inset: auto; min-height: calc(100vh - 78px); background: transparent; padding: 40px 20px; z-index: 1; }
+    body.login-page #login-modal .modal-panel { box-shadow: 0 16px 55px rgba(29,32,27,.12); }
     body.admin-mode .nav-links > a, body.seller-mode .nav-links > a { display: none; }
     @media (max-width: 900px) {
       body.admin-mode .nav-links > .nav-action,
@@ -155,7 +179,7 @@
     .admin-button { border: 1px solid var(--ink); background: var(--ink); color: var(--white); padding: 10px 15px; cursor: pointer; font-size: 12px; }
     .admin-button.secondary { background: transparent; color: var(--ink); }
     .admin-button.danger { background: transparent; border-color: #a64c3c; color: #a64c3c; }
-    .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; margin-bottom: 20px; }
     .stat { background: var(--paper); border: 1px solid var(--line); padding: 22px; }
     .stat span { display: block; color: #7a7d74; font-size: 12px; margin-bottom: 8px; }
     .stat strong { font-family: "Italiana", Georgia, serif; font-size: 34px; font-weight: 400; }
@@ -175,6 +199,8 @@
     .product-row strong { font-weight: 500; }
     .product-row button { border: 0; background: none; padding: 5px; text-decoration: underline; cursor: pointer; font-size: 11px; }
     .product-row .product-disabled { color: #aa5a49; }
+    .admin-service-image { width: 54px; height: 54px; object-fit: cover; }
+    .admin-services-table { min-width: 860px; }
     .admin-field { margin-bottom: 15px; }
     .admin-field label { margin-bottom: 6px; }
     .admin-field input, .admin-field textarea, .admin-field select { font-size: 13px; }
@@ -190,6 +216,11 @@
     .submission-actions { display: flex; gap: 8px; margin-top: 14px; }
     .credentials-box { padding: 16px; background: #e8ebdf; margin-top: 16px; word-break: break-word; }
     .credentials-box code { font-size: 14px; user-select: all; }
+    .local-link-note { color: #8c392b; font-size: 12px; line-height: 1.5; }
+    body.seller-hair #seller-product-workspace,
+    body.seller-nails #seller-product-workspace { display: none; }
+    body.seller-bakery #seller-service-workspace,
+    body.seller-clothing #seller-service-workspace { display: none; }
     .role-badge { display: inline-block; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--olive); }
     body.seller-mode [data-admin-only] { display: none !important; }
     body.admin-mode [data-seller-only] { display: none !important; }
@@ -252,6 +283,8 @@
       .intro { grid-template-columns: 1fr; gap: 24px; padding: 78px 0; }
       .cards { grid-template-columns: repeat(2, 1fr); }
       .bakery-grid { grid-template-columns: repeat(2, 1fr); }
+      .business-type-grid { grid-template-columns: repeat(2, 1fr); }
+      .service-grid { grid-template-columns: repeat(2, 1fr); }
       .experience { grid-template-columns: 1fr; }
       .experience-image { height: 480px; }
       .experience-copy { min-height: 500px; }
@@ -272,6 +305,7 @@
       .filters { flex-wrap: wrap; }
       .cards { grid-template-columns: 1fr; }
       .bakery-grid { grid-template-columns: 1fr; }
+      .business-type-grid, .service-grid { grid-template-columns: 1fr; }
       .card { margin-bottom: 18px; }
       .feature-row { grid-template-columns: 1fr; }
       .feature + .feature { border-left: 0; border-top: 1px solid rgba(29,32,27,.16); padding-left: 0; }
@@ -300,10 +334,11 @@
       <a class="brand" href="#"><span data-store-name>Atelier</span><i></i></a>
       <div class="nav-links">
         <a href="#bakery">Cakes</a>
-        <a href="#ideas">Ideas</a>
-        <a href="#services">Services</a>
+        <a href="#business-types">Businesses</a>
+        <a href="#ideas">Business ideas</a>
+        <a href="#services">Professional services</a>
         <a href="#about">Our approach</a>
-        <a class="nav-action" href="#contact">Start a project</a>
+        <a class="nav-action" href="#contact">Contact us</a>
         <div class="role-switch" aria-label="Account access">
           <span class="signed-in-user" id="signed-in-user" hidden></span>
           <button type="button" class="nav-auth" id="admin-login-button">Admin / seller sign in</button>
@@ -317,17 +352,17 @@
   <main>
     <section class="hero shell">
       <div class="hero-copy">
-        <div class="eyebrow" id="store-eyebrow">Independent business studio</div>
-        <h1 class="serif">Make your <em>idea</em> visible.</h1>
-        <p id="store-tagline">Thoughtful digital spaces for brands with a point of view. From first launch to daily storefront, every detail works beautifully.</p>
+        <div class="eyebrow" id="store-eyebrow">Our collections & care</div>
+        <h1 class="serif">Style, beauty <em>&</em> something sweet.</h1>
+        <p id="store-tagline">Explore freshly prepared cakes, considered clothing, professional hair styling and creative nail care. Every listing has a clear price and a simple way to order or book.</p>
         <div class="hero-actions">
-          <a class="primary-button" href="#ideas">Explore ideas <span class="arrow">↗</span></a>
-          <button class="text-link" type="button" data-open-modal style="border-width:0 0 1px; background:none; cursor:pointer;">Book a consultation</button>
+          <a class="primary-button" href="#business-types">Shop our collections <span class="arrow">↗</span></a>
+          <button class="text-link" type="button" data-open-modal style="border-width:0 0 1px; background:none; cursor:pointer;">Contact us</button>
         </div>
       </div>
       <div class="hero-visual">
         <img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=85" alt="Elegant boutique interior">
-        <div class="hero-tag"><div><strong>12+</strong> brands launched</div></div>
+        <div class="hero-tag"><div><strong>Made for you</strong>Style · Beauty · Baking</div></div>
       </div>
     </section>
 
@@ -350,8 +385,12 @@
           <h2 class="serif">Set a private password</h2>
           <p>For your protection, change the temporary password before you continue.</p>
           <form id="password-change-form" class="settings-grid">
-            <div class="admin-field field-full"><label for="current-password">Temporary/current password</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required></div>
-            <div class="admin-field field-full"><label for="new-password">New password (at least 12 characters)</label><input id="new-password" name="newPassword" type="password" minlength="12" autocomplete="new-password" required></div>
+            <div class="admin-field field-full"><label for="current-password">Temporary/current password</label><div class="password-input-wrap"><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" data-toggle-password="current-password" aria-label="Show password" aria-controls="current-password" title="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button></div></div>
+            <div class="admin-field field-full"><label for="new-password">New password (at least 12 characters)</label><div class="password-input-wrap"><input id="new-password" name="newPassword" type="password" minlength="12" autocomplete="new-password" required><button class="password-toggle" type="button" data-toggle-password="new-password" aria-label="Show password" aria-controls="new-password" title="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button></div></div>
             <div class="field-full"><button class="admin-button" type="submit">Change password</button></div>
           </form>
         </section>
@@ -359,7 +398,9 @@
           <nav class="admin-nav" aria-label="Admin sections">
             <button type="button" class="active" data-admin-tab="overview" data-admin-only>Overview</button>
             <button type="button" data-admin-tab="orders" data-admin-only>Orders</button>
+            <button type="button" data-admin-tab="appointments" data-admin-only>Appointments</button>
             <button type="button" data-admin-tab="products" data-admin-only>Products & pricing</button>
+            <button type="button" data-admin-tab="services" data-admin-only>Salon services</button>
             <button type="button" data-admin-tab="submissions" data-admin-only>Seller approvals</button>
             <button type="button" data-admin-tab="sellers" data-admin-only>Sellers</button>
             <button type="button" data-admin-tab="website" data-admin-only>Website settings</button>
@@ -374,6 +415,7 @@
                 <div class="stat"><span>Live products</span><strong id="metric-products">0</strong></div>
                 <div class="stat"><span>Pending changes</span><strong id="metric-submissions">0</strong></div>
                 <div class="stat"><span>Seller accounts</span><strong id="metric-sellers">0</strong></div>
+                <div class="stat"><span>Upcoming bookings</span><strong id="metric-appointments">0</strong></div>
               </div>
               <div class="orders-panel">
                 <h2 class="serif">Latest orders</h2>
@@ -387,7 +429,7 @@
                 <div class="admin-card">
                   <h3 class="serif">Quick actions</h3>
                   <div class="admin-toolbar">
-                    <button class="admin-button" type="button" data-go-tab="products">Add a cake</button>
+                    <button class="admin-button" type="button" data-go-tab="products">Add a product</button>
                     <button class="admin-button secondary" type="button" data-go-tab="website">Edit site details</button>
                   </div>
                   <p style="color:#777b72;font-size:12px;line-height:1.6;margin:15px 0 0">Update your menu, prices, availability and public contact details from the admin tools.</p>
@@ -409,12 +451,23 @@
               </div>
               <div class="orders-panel"><div id="all-orders"></div></div>
             </section>
+            <section class="admin-panel" data-admin-panel="appointments" data-admin-only>
+              <div class="panel-heading"><h2 class="serif">Hair & nail appointments</h2></div>
+              <div class="orders-panel"><div id="all-appointments"></div></div>
+            </section>
             <section class="admin-panel" data-admin-panel="products" data-admin-only>
               <div class="panel-heading">
                 <h2 class="serif">Products & pricing</h2>
                 <button class="admin-button" type="button" id="add-product">Add a product +</button>
               </div>
               <div class="orders-panel"><div id="admin-products"></div></div>
+            </section>
+            <section class="admin-panel" data-admin-panel="services" data-admin-only>
+              <div class="panel-heading">
+                <h2 class="serif">Salon services & prices</h2>
+                <button class="admin-button" type="button" id="add-service">Add a service +</button>
+              </div>
+              <div class="orders-panel"><div id="admin-services"></div></div>
             </section>
             <section class="admin-panel" data-admin-panel="submissions" data-admin-only>
               <div class="panel-heading"><h2 class="serif">Seller submissions</h2></div>
@@ -425,28 +478,31 @@
               <form class="admin-card settings-grid" id="seller-create-form">
                 <div class="admin-field"><label for="seller-name">Seller name</label><input id="seller-name" name="name" required></div>
                 <div class="admin-field"><label for="seller-email">Seller email</label><input id="seller-email" name="email" type="email" required></div>
+                <div class="admin-field"><label for="seller-business-type">Assign business / work</label><select id="seller-business-type" name="businessType" required><option value="bakery">Bakery seller</option><option value="clothing">Clothing seller</option><option value="hair">Hair stylist</option><option value="nails">Nail technician</option></select></div>
                 <div class="field-full"><button class="admin-button" type="submit">Create account & issue password</button><p class="save-message" id="seller-create-message" role="status"></p></div>
               </form>
               <div class="admin-card" id="seller-credentials" hidden>
                 <h3 class="serif">Share this temporary password with the seller</h3>
+                <p id="credential-work"></p>
                 <p>It is shown once. They must change it when they sign in. Send them the seller sign-in link too.</p>
                 <div class="credentials-box"><div id="credential-email"></div><code id="credential-password"></code></div>
-                <p><a class="admin-button secondary" href="/seller" target="_blank" rel="noopener">Open seller sign-in</a></p>
+                <p><a class="admin-button secondary" id="seller-signin-link" href="/seller" target="_blank" rel="noopener">Open seller sign-in</a></p>
+                <p class="local-link-note" id="seller-link-note" hidden></p>
                 <button class="admin-button secondary" type="button" id="copy-credentials">Copy credentials</button>
               </div>
               <div class="orders-panel" style="margin-top:16px"><div id="seller-list"></div></div>
             </section>
             <section class="admin-panel" data-admin-panel="seller" data-seller-only>
-              <div class="panel-heading"><h2 class="serif">Your products & stock</h2></div>
-              <div class="admin-card">
+              <div class="panel-heading"><h2 class="serif" id="seller-work-heading">Your business workspace</h2></div>
+              <div class="admin-card" id="seller-product-workspace">
                 <h3 class="serif">Submit a product or stock change</h3>
                 <p style="color:#777b72;font-size:13px;line-height:1.6">Changes are not public until an admin reviews and approves them.</p>
                 <form id="seller-submit-form" class="settings-grid">
                   <div class="admin-field field-full"><label for="seller-product-choice">Product to update (or add new)</label><select id="seller-product-choice" name="productId"><option value="">New product</option></select></div>
                   <div class="admin-field"><label for="seller-product-name">Product name</label><input id="seller-product-name" name="name" required></div>
-                  <div class="admin-field"><label for="seller-product-price">Price per kg (KSh)</label><input id="seller-product-price" name="price" type="number" min="1" step="1" required></div>
-                  <div class="admin-field"><label for="seller-product-stock">Stock available (kg)</label><input id="seller-product-stock" name="stock" type="number" min="0" step="1" required></div>
-                  <div class="admin-field"><label for="seller-product-min">Minimum order size (kg)</label><input id="seller-product-min" name="minQty" type="number" min="1" value="1" required></div>
+                  <div class="admin-field"><label id="seller-product-price-label" for="seller-product-price">Price per kg (KSh)</label><input id="seller-product-price" name="price" type="number" min="1" step="1" required></div>
+                  <div class="admin-field"><label id="seller-product-stock-label" for="seller-product-stock">Stock available (kg)</label><input id="seller-product-stock" name="stock" type="number" min="0" step="1" required></div>
+                  <div class="admin-field"><label id="seller-product-min-label" for="seller-product-min">Minimum order size (kg)</label><input id="seller-product-min" name="minQty" type="number" min="1" value="1" required></div>
                   <div class="admin-field"><label for="seller-product-size">Size range</label><input id="seller-product-size" name="size" placeholder="1–3 kg"></div>
                   <div class="admin-field"><label for="seller-product-serves">Serves</label><input id="seller-product-serves" name="serves" placeholder="8–18"></div>
                   <div class="admin-field"><label for="seller-product-lead">Preparation notice</label><input id="seller-product-lead" name="lead" placeholder="48-hour notice"></div>
@@ -454,6 +510,20 @@
                   <div class="admin-field field-full"><label for="seller-product-description">Description</label><textarea id="seller-product-description" name="description" rows="2"></textarea></div>
                   <div class="admin-field field-full"><label for="seller-product-image">Image URL (HTTPS)</label><input id="seller-product-image" name="image" type="url"></div>
                   <div class="field-full"><button class="admin-button" type="submit">Send for admin approval</button><p class="save-message" id="seller-submit-message" role="status"></p></div>
+                </form>
+              </div>
+              <div class="admin-card" id="seller-service-workspace" hidden>
+                <h3 class="serif">Submit a salon service or update</h3>
+                <p style="color:#777b72;font-size:13px;line-height:1.6">Clients can book after the admin approves your service. Appointment requests are tracked in the admin dashboard.</p>
+                <form id="seller-service-form" class="settings-grid">
+                  <div class="admin-field field-full"><label for="seller-service-choice">Service to update (or add new)</label><select id="seller-service-choice" name="serviceId"><option value="">New service</option></select></div>
+                  <div class="admin-field"><label for="seller-service-name">Service name</label><input id="seller-service-name" name="name" required></div>
+                  <div class="admin-field"><label for="seller-service-price">Price (KSh)</label><input id="seller-service-price" name="price" type="number" min="1" step="1" required></div>
+                  <div class="admin-field"><label for="seller-service-duration">Duration (minutes)</label><input id="seller-service-duration" name="durationMinutes" type="number" min="10" max="480" step="5" value="60" required></div>
+                  <div class="admin-field"><label for="seller-service-availability">Availability</label><input id="seller-service-availability" name="availability" placeholder="Tue–Sat, 9am–5pm"></div>
+                  <div class="admin-field field-full"><label for="seller-service-description">Description</label><textarea id="seller-service-description" name="description" rows="2"></textarea></div>
+                  <div class="admin-field field-full"><label for="seller-service-image">Image URL (HTTPS)</label><input id="seller-service-image" name="image" type="url"></div>
+                  <div class="field-full"><button class="admin-button" type="submit">Send service for approval</button><p class="save-message" id="seller-service-message" role="status"></p></div>
                 </form>
               </div>
               <div class="admin-card" style="margin-top:16px">
@@ -491,11 +561,20 @@
       </div>
     </section>
 
-    <section class="intro shell" id="about">
-      <h2 class="serif">A clear idea, shaped into a beautiful business.</h2>
-      <div class="intro-text">
-        <p>We create distinctive websites for makers, specialists and modern retailers. Your site will feel personal to your brand and practical for the people who use it.</p>
-        <a class="text-link" href="#services">Discover our approach</a>
+    <section class="business-types" id="business-types">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Shop and book</div>
+            <h2 class="serif">Shop our collections</h2>
+          </div>
+        </div>
+        <div class="business-type-grid">
+          <a class="business-type-card" href="#bakery"><strong>Bakery</strong><span>Custom cakes and sweet treats · Pre-order</span></a>
+          <a class="business-type-card" href="#clothing"><strong>Clothing</strong><span>Browse pieces and place an order</span></a>
+          <a class="business-type-card" href="#hair"><strong>Hair</strong><span>Explore hair services · Book an appointment</span></a>
+          <a class="business-type-card" href="#nails"><strong>Nails</strong><span>Find a nail service · Book a session</span></a>
+        </div>
       </div>
     </section>
 
@@ -513,48 +592,83 @@
       </div>
     </section>
 
+    <section class="ideas" id="clothing">
+      <div class="shell">
+        <div class="section-head">
+          <div><div class="eyebrow">Clothing studio</div><h2 class="serif">Shop the collection</h2></div>
+        </div>
+        <div class="bakery-grid" id="clothing-products"></div>
+      </div>
+    </section>
+
+    <section class="bakery" id="hair">
+      <div class="shell">
+        <div class="section-head">
+          <div><div class="eyebrow">Hair studio</div><h2 class="serif">Hair services</h2></div>
+        </div>
+        <div class="service-grid" id="hair-services"></div>
+      </div>
+    </section>
+
+    <section class="ideas" id="nails">
+      <div class="shell">
+        <div class="section-head">
+          <div><div class="eyebrow">Nail studio</div><h2 class="serif">Nail services</h2></div>
+        </div>
+        <div class="service-grid" id="nail-services"></div>
+      </div>
+    </section>
+
+    <section class="intro shell" id="about">
+      <h2 class="serif">Thoughtful choices, personal service.</h2>
+      <div class="intro-text">
+        <p>We bring together quality products and skilled local services. Clear pricing, careful presentation and direct order or booking requests make it easy to choose what suits you.</p>
+        <a class="text-link" href="#business-types">Explore our collections</a>
+      </div>
+    </section>
+
     <section class="ideas" id="ideas">
       <div class="shell">
         <div class="section-head">
           <div>
-            <div class="eyebrow">Selected concepts</div>
-            <h2 class="serif">Find your direction</h2>
+            <div class="eyebrow">Ideas for every occasion</div>
+            <h2 class="serif">Find your next favourite</h2>
           </div>
           <div class="filters" aria-label="Filter concepts">
             <button class="filter active" type="button" data-filter="all">All</button>
-            <button class="filter" type="button" data-filter="store">Store</button>
-            <button class="filter" type="button" data-filter="booking">Booking</button>
-            <button class="filter" type="button" data-filter="portfolio">Portfolio</button>
+            <button class="filter" type="button" data-filter="bakery">Bakery</button>
+            <button class="filter" type="button" data-filter="clothing">Clothing</button>
+            <button class="filter" type="button" data-filter="beauty">Beauty</button>
           </div>
         </div>
 
         <div class="cards">
-          <article class="card" data-category="store booking">
+          <article class="card" data-category="bakery booking">
             <div class="card-image">
               <img src="https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=85" alt="Fresh artisan pastries">
             </div>
             <div class="card-meta">
-              <div><h3 class="serif">Artisan Bakery</h3><p>Store · Pre-orders · Collections</p></div>
+              <div><h3 class="serif">A sweeter celebration</h3><p>Fresh cakes · Custom orders · Special moments</p></div>
               <span class="card-number">01</span>
             </div>
           </article>
 
-          <article class="card" data-category="store portfolio">
+          <article class="card" data-category="clothing">
             <div class="card-image">
               <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=900&q=85" alt="Fashion collection in a studio">
             </div>
             <div class="card-meta">
-              <div><h3 class="serif">Fashion Studio</h3><p>Store · Lookbook · Editorial</p></div>
+              <div><h3 class="serif">Everyday style</h3><p>Considered pieces · Easy ordering · Clear prices</p></div>
               <span class="card-number">02</span>
             </div>
           </article>
 
-          <article class="card" data-category="portfolio booking">
+          <article class="card" data-category="beauty booking">
             <div class="card-image">
-              <img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=900&q=85" alt="Minimal creative workspace">
+              <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=900&q=85" alt="Nail art and beauty care">
             </div>
             <div class="card-meta">
-              <div><h3 class="serif">Creative Portfolio</h3><p>Projects · Services · Booking</p></div>
+              <div><h3 class="serif">A little self-care</h3><p>Hair styling · Nail art · Appointment booking</p></div>
               <span class="card-number">03</span>
             </div>
           </article>
@@ -567,27 +681,27 @@
         <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=85" alt="Modern professional studio">
       </div>
       <div class="experience-copy">
-        <div class="eyebrow">Built for real use</div>
-        <h2 class="serif">More than a beautiful first impression.</h2>
-        <p>Sell products, take appointments and share your work with a system that is simple to manage and effortless to use.</p>
+        <div class="eyebrow">Professional services</div>
+        <h2 class="serif">Care and quality in every detail.</h2>
+        <p>Choose a hairstyle or nail service, see the price before you book, and send an appointment request directly to the team.</p>
         <div class="feature-row">
           <div class="feature">
-            <strong>Store</strong>
-            <span>Product pages, collections, cart and secure checkout.</span>
+            <strong>Personal care</strong>
+            <span>Skilled hair styling and considered nail services.</span>
           </div>
           <div class="feature">
-            <strong>Booking</strong>
-            <span>Services, availability, reservations and confirmations.</span>
+            <strong>Clear pricing</strong>
+            <span>Each product and service displays its current price.</span>
           </div>
         </div>
       </div>
     </section>
 
     <section class="cta shell" id="contact">
-      <div class="eyebrow" style="justify-content:center">Begin with a conversation</div>
-      <h2 class="serif">Let's build something memorable.</h2>
-      <p>Tell us what you are creating. We will shape the right digital home for it.</p>
-      <button class="primary-button" type="button" data-open-modal>Start a project <span class="arrow">↗</span></button>
+      <div class="eyebrow" style="justify-content:center">Here to help</div>
+      <h2 class="serif">Your next favourite is waiting.</h2>
+      <p>Browse our goods and services, or contact us for help with an order or appointment.</p>
+      <button class="primary-button" type="button" data-open-modal>Contact us <span class="arrow">↗</span></button>
     </section>
   </main>
 
@@ -608,10 +722,25 @@
     <div class="modal-panel">
       <button class="close-modal" type="button" aria-label="Close">&times;</button>
       <div class="eyebrow">Protected workspace</div>
-      <h2 class="serif" id="login-title">Admin or seller sign in</h2>
+      <h2 class="serif" id="login-title">Admin sign in</h2>
       <form id="login-form">
-        <div class="admin-field"><label for="login-email">Account email</label><input id="login-email" name="email" type="email" autocomplete="username" required></div>
-        <div class="admin-field"><label for="login-password">Password</label><input id="login-password" name="password" type="password" autocomplete="current-password" required></div>
+      <div class="login-role-options" role="group" aria-label="Choose account type">
+        <button type="button" data-login-role="admin" aria-pressed="true">Administrator</button>
+        <button type="button" data-login-role="seller" aria-pressed="false">Seller</button>
+      </div>
+      <input id="login-role" type="hidden" name="role" value="admin">
+      <p id="login-role-help" class="save-message" aria-live="polite">Use your administrator email and verification password.</p>
+      <div class="admin-field"><label id="login-email-label" for="login-email">Administrator email</label><input id="login-email" name="email" type="email" autocomplete="username" required></div>
+      <p class="save-message" id="login-email-status" aria-live="polite"></p>
+      <div class="admin-field">
+        <label id="login-password-label" for="login-password">Verification password</label>
+        <div class="password-input-wrap">
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+          <button class="password-toggle" type="button" data-toggle-password="login-password" aria-label="Show password" aria-controls="login-password" title="Show password">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
         <p class="save-message" id="login-error" role="alert"></p>
         <button class="primary-button" type="submit">Sign in securely <span class="arrow">↗</span></button>
       </form>
@@ -622,21 +751,43 @@
     <div class="modal-panel">
       <button class="close-modal" type="button" aria-label="Close">&times;</button>
       <div class="eyebrow">Menu management</div>
-      <h2 class="serif" id="product-modal-title">Add a cake</h2>
+      <h2 class="serif" id="product-modal-title">Add a product</h2>
       <form id="product-form">
         <input type="hidden" name="id">
         <div class="form-grid">
-          <div class="full"><label for="product-name">Cake name</label><input id="product-name" name="name" required></div>
-          <div><label for="product-price">Price per kg (KSh)</label><input id="product-price" name="price" type="number" min="1" step="1" required></div>
-          <div><label for="product-min-quantity">Minimum size (kg)</label><input id="product-min-quantity" name="minQty" type="number" min="1" step="1" value="1" required></div>
-          <div><label for="product-stock">Stock available (kg)</label><input id="product-stock" name="stock" type="number" min="0" step="1" value="0" required></div>
+          <div class="full"><label for="product-business-type">Business category</label><select id="product-business-type" name="businessType"><option value="bakery">Bakery product</option><option value="clothing">Clothing item</option></select></div>
+          <div class="full"><label for="product-name">Product name</label><input id="product-name" name="name" required></div>
+          <div><label id="product-price-label" for="product-price">Price per kg (KSh)</label><input id="product-price" name="price" type="number" min="1" step="1" required></div>
+          <div><label id="product-min-label" for="product-min-quantity">Minimum size (kg)</label><input id="product-min-quantity" name="minQty" type="number" min="1" step="1" value="1" required></div>
+          <div><label id="product-stock-label" for="product-stock">Stock available (kg)</label><input id="product-stock" name="stock" type="number" min="0" step="1" value="0" required></div>
           <div><label for="product-size">Size range</label><input id="product-size" name="size" placeholder="1–3 kg"></div>
           <div><label for="product-serves">Serves</label><input id="product-serves" name="serves" placeholder="8–18"></div>
           <div><label for="product-lead">Preparation notice</label><input id="product-lead" name="lead" placeholder="48-hour notice"></div>
           <div class="full"><label for="product-description">Description</label><textarea id="product-description" name="description" rows="2"></textarea></div>
-          <div class="full"><label for="product-image">Image URL</label><input id="product-image" name="image" type="url" placeholder="https://..."></div>
+          <div class="full"><label for="product-image">Product photo URL (HTTPS)</label><input id="product-image" name="image" type="url" placeholder="https://..."></div>
           <div class="full"><label for="product-availability">Availability message</label><input id="product-availability" name="availability" placeholder="Available this week"></div>
           <div class="full"><button class="primary-button full" type="submit">Save product</button></div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="service-modal" role="dialog" aria-modal="true" aria-labelledby="service-modal-title">
+    <div class="modal-panel">
+      <button class="close-modal" type="button" aria-label="Close">&times;</button>
+      <div class="eyebrow">Salon menu management</div>
+      <h2 class="serif" id="service-modal-title">Add a service</h2>
+      <form id="admin-service-form">
+        <input type="hidden" name="serviceId">
+        <div class="form-grid">
+          <div class="full"><label for="admin-service-business-type">Business category</label><select id="admin-service-business-type" name="businessType" required><option value="hair">Hair styling</option><option value="nails">Nail care & art</option></select></div>
+          <div class="full"><label for="admin-service-name">Service name</label><input id="admin-service-name" name="name" required></div>
+          <div><label for="admin-service-price">Price (KSh)</label><input id="admin-service-price" name="price" type="number" min="1" step="1" required></div>
+          <div><label for="admin-service-duration">Duration (minutes)</label><input id="admin-service-duration" name="durationMinutes" type="number" min="10" max="480" step="5" value="60" required></div>
+          <div class="full"><label for="admin-service-availability">Availability</label><input id="admin-service-availability" name="availability" placeholder="By appointment · Tue–Sat"></div>
+          <div class="full"><label for="admin-service-description">Description</label><textarea id="admin-service-description" name="description" rows="2"></textarea></div>
+          <div class="full"><label for="admin-service-image">Service photo URL (HTTPS)</label><input id="admin-service-image" name="image" type="url" placeholder="https://..."></div>
+          <div class="full"><button class="primary-button full" type="submit">Save service</button></div>
         </div>
       </form>
     </div>
@@ -645,21 +796,43 @@
   <div class="modal" id="order-modal" role="dialog" aria-modal="true" aria-labelledby="order-modal-title">
     <div class="modal-panel">
       <button class="close-modal" type="button" aria-label="Close">&times;</button>
-      <div class="eyebrow">Cake pre-order</div>
-      <h2 class="serif" id="order-modal-title">Place an enquiry</h2>
+      <div class="eyebrow">Product order</div>
+      <h2 class="serif" id="order-modal-title">Place an order</h2>
       <form id="order-form">
         <input type="hidden" name="productId">
         <div class="form-grid">
-          <div class="full"><label for="order-cake">Selected cake</label><input id="order-cake" name="cake" readonly></div>
+          <div class="full"><label for="order-cake">Selected product</label><input id="order-cake" name="cake" readonly></div>
           <div><label for="order-name">Your name</label><input id="order-name" name="customer" required></div>
           <div><label for="order-phone">Phone number</label><input id="order-phone" name="phone" type="tel" required></div>
           <div class="full"><label for="order-email">Email address (optional)</label><input id="order-email" name="email" type="email"></div>
-          <div><label for="order-quantity">Quantity (kg)</label><input id="order-quantity" name="quantity" type="number" min="1" value="1" required></div>
-          <div><label for="order-date">Preferred collection date</label><input id="order-date" name="date" type="date" required></div>
+          <div><label for="order-quantity" id="order-quantity-label">Quantity</label><input id="order-quantity" name="quantity" type="number" min="1" value="1" required></div>
+          <div><label for="order-date" id="order-date-label">Preferred collection date</label><input id="order-date" name="date" type="date" required></div>
           <div class="full"><label for="order-notes">Notes / design requests</label><textarea id="order-notes" name="notes" rows="2"></textarea></div>
           <div class="full"><button class="primary-button full" type="submit">Send pre-order request <span class="arrow">↗</span></button></div>
         </div>
-        <p class="save-message" id="order-message" role="status">Your request is sent securely to the bakery so the admin can track it and confirm your order.</p>
+        <p class="save-message" id="order-message" role="status">Your order is sent securely so the admin can track it and confirm it.</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="appointment-modal" role="dialog" aria-modal="true" aria-labelledby="appointment-title">
+    <div class="modal-panel">
+      <button class="close-modal" type="button" aria-label="Close">&times;</button>
+      <div class="eyebrow">Salon booking</div>
+      <h2 class="serif" id="appointment-title">Request an appointment</h2>
+      <form id="appointment-form">
+        <input type="hidden" name="serviceId">
+        <div class="admin-card" style="margin-bottom:14px"><strong id="appointment-service"></strong><p id="appointment-service-details"></p></div>
+        <div class="form-grid">
+          <div class="full"><label for="appointment-name">Your name</label><input id="appointment-name" name="customer" required></div>
+          <div><label for="appointment-phone">Phone number</label><input id="appointment-phone" name="phone" type="tel" required></div>
+          <div><label for="appointment-email">Email (optional)</label><input id="appointment-email" name="email" type="email"></div>
+          <div><label for="appointment-date">Preferred date</label><input id="appointment-date" name="date" type="date" required></div>
+          <div><label for="appointment-time">Preferred time</label><input id="appointment-time" name="time" type="time" required></div>
+          <div class="full"><label for="appointment-notes">Notes</label><textarea id="appointment-notes" name="notes" rows="2"></textarea></div>
+          <div class="full"><button class="primary-button full" type="submit">Request appointment</button></div>
+        </div>
+        <p class="save-message" id="appointment-message" role="status"></p>
       </form>
     </div>
   </div>
@@ -667,8 +840,8 @@
   <div class="modal" id="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-title">
     <div class="modal-panel">
       <button class="close-modal" type="button" aria-label="Close">&times;</button>
-      <div class="eyebrow">Project enquiry</div>
-      <h2 class="serif" id="booking-title">Plan a consultation</h2>
+      <div class="eyebrow">Customer support</div>
+      <h2 class="serif" id="booking-title">Get in touch</h2>
       <form id="booking-form">
         <div class="form-grid">
           <div>
@@ -680,17 +853,18 @@
             <input id="email" name="email" type="email" required placeholder="alex@company.com">
           </div>
           <div class="full">
-            <label for="business">Business type</label>
+            <label for="business">What can we help with?</label>
             <select id="business" name="business">
-              <option>Artisan bakery</option>
-              <option>Clothing store</option>
-              <option>Creative portfolio</option>
-              <option>Booking-based service</option>
+              <option>Cake or bakery order</option>
+              <option>Clothing order</option>
+              <option>Hair appointment</option>
+              <option>Nail appointment</option>
+              <option>Other question</option>
             </select>
           </div>
           <div class="full">
-            <label for="message">Tell us a little about your idea</label>
-            <textarea id="message" name="message" placeholder="Your vision, goals and timeline"></textarea>
+            <label for="message">How can we help?</label>
+            <textarea id="message" name="message" placeholder="Tell us about your order or appointment"></textarea>
           </div>
           <button class="primary-button full" type="submit">Request a consultation <span class="arrow">↗</span></button>
         </div>

@@ -8,6 +8,15 @@ const { DatabaseSync } = require('node:sqlite');
 
 const host = process.env.HOST || '127.0.0.1';
 const port = Number(process.env.PORT || 4174);
+let publicBaseUrl = '';
+if (process.env.PUBLIC_BASE_URL) {
+  const parsedBaseUrl = new URL(process.env.PUBLIC_BASE_URL);
+  if (!['http:', 'https:'].includes(parsedBaseUrl.protocol) || parsedBaseUrl.username || parsedBaseUrl.password ||
+    parsedBaseUrl.pathname !== '/' || parsedBaseUrl.search || parsedBaseUrl.hash) {
+    throw new Error('PUBLIC_BASE_URL must be an http(s) origin without a path, query, or credentials.');
+  }
+  publicBaseUrl = parsedBaseUrl.origin;
+}
 const dataDirectory = path.join(__dirname, '.data');
 fs.mkdirSync(dataDirectory, { recursive: true });
 
@@ -23,6 +32,7 @@ database.exec(`
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('admin', 'seller')),
+    business_type TEXT NOT NULL DEFAULT 'bakery',
     must_change_password INTEGER NOT NULL DEFAULT 0,
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -30,6 +40,8 @@ database.exec(`
   CREATE TABLE IF NOT EXISTS products (
     id TEXT PRIMARY KEY,
     seller_id INTEGER REFERENCES users(id),
+    business_type TEXT NOT NULL DEFAULT 'bakery',
+    quantity_unit TEXT NOT NULL DEFAULT 'kg',
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     price INTEGER NOT NULL,
@@ -47,7 +59,10 @@ database.exec(`
   CREATE TABLE IF NOT EXISTS submissions (
     id TEXT PRIMARY KEY,
     seller_id INTEGER NOT NULL REFERENCES users(id),
+    business_type TEXT NOT NULL DEFAULT 'bakery',
+    item_type TEXT NOT NULL DEFAULT 'product',
     product_id TEXT REFERENCES products(id) ON DELETE SET NULL,
+    service_id TEXT,
     data_json TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     reviewed_by INTEGER REFERENCES users(id),
@@ -60,6 +75,8 @@ database.exec(`
     phone TEXT NOT NULL,
     email TEXT NOT NULL DEFAULT '',
     product_id TEXT REFERENCES products(id) ON DELETE SET NULL,
+    business_type TEXT NOT NULL DEFAULT 'bakery',
+    quantity_unit TEXT NOT NULL DEFAULT 'kg',
     cake TEXT NOT NULL,
     quantity INTEGER NOT NULL,
     collection_date TEXT NOT NULL,
@@ -75,13 +92,67 @@ database.exec(`
     email TEXT NOT NULL,
     tagline TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS app_migrations (
+    name TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS services (
+    id TEXT PRIMARY KEY,
+    seller_id INTEGER REFERENCES users(id),
+    business_type TEXT NOT NULL CHECK (business_type IN ('hair', 'nails')),
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price INTEGER NOT NULL,
+    duration_minutes INTEGER NOT NULL DEFAULT 60,
+    availability TEXT NOT NULL DEFAULT '',
+    image TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'hidden')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS appointments (
+    id TEXT PRIMARY KEY,
+    service_id TEXT REFERENCES services(id) ON DELETE SET NULL,
+    business_type TEXT NOT NULL CHECK (business_type IN ('hair', 'nails')),
+    service_name TEXT NOT NULL,
+    customer TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    email TEXT NOT NULL DEFAULT '',
+    appointment_date TEXT NOT NULL,
+    appointment_time TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    total INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'New' CHECK (status IN ('New', 'Confirmed', 'Completed', 'Cancelled')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 `);
+
+function ensureColumn(table, column, definition) {
+  const columns = database.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some(item => item.name === column)) database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+ensureColumn('users', 'business_type', "TEXT NOT NULL DEFAULT 'bakery'");
+ensureColumn('products', 'business_type', "TEXT NOT NULL DEFAULT 'bakery'");
+ensureColumn('products', 'quantity_unit', "TEXT NOT NULL DEFAULT 'kg'");
+ensureColumn('submissions', 'business_type', "TEXT NOT NULL DEFAULT 'bakery'");
+ensureColumn('submissions', 'item_type', "TEXT NOT NULL DEFAULT 'product'");
+ensureColumn('submissions', 'service_id', 'TEXT');
+ensureColumn('orders', 'business_type', "TEXT NOT NULL DEFAULT 'bakery'");
+ensureColumn('orders', 'quantity_unit', "TEXT NOT NULL DEFAULT 'kg'");
 
 database.prepare(`
   INSERT OR IGNORE INTO settings (id, store_name, phone, email, tagline)
   VALUES (1, 'Atelier', '0116094185', 'mutukubrian95@gmail.com',
-    'Thoughtful digital spaces for brands with a point of view. From first launch to daily storefront, every detail works beautifully.')
+    'Explore freshly prepared cakes, considered clothing, professional hair styling and creative nail care. Every listing has a clear price and a simple way to order or book.')
 `).run();
+database.prepare(`
+  UPDATE settings SET tagline = ?
+  WHERE id = 1 AND tagline = ?
+`).run(
+  'Explore freshly prepared cakes, considered clothing, professional hair styling and creative nail care. Every listing has a clear price and a simple way to order or book.',
+  'Thoughtful digital spaces for brands with a point of view. From first launch to daily storefront, every detail works beautifully.'
+);
 
 const defaultProducts = [
   ['chocolate-ganache', 'Chocolate Ganache', 'Rich cocoa sponge with silky dark-chocolate ganache', 2500, 1, '1–3 kg', '8–18', '48-hour notice', 'Available this week', 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=85', 12],
@@ -99,6 +170,42 @@ if (database.prepare('SELECT COUNT(*) AS count FROM products').get().count === 0
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
   `);
   for (const product of defaultProducts) insertProduct.run(...product);
+}
+
+if (!database.prepare('SELECT name FROM app_migrations WHERE name = ?').get('starter-commerce-catalog-v1')) {
+  const clothingProducts = [
+    ['atelier-linen-dress', 'clothing', 'Linen Day Dress', 'A relaxed, breathable dress for polished everyday wear.', 3800, 1, 'S–XL', '', '', 'Available in selected sizes', 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=85', 12],
+    ['atelier-classic-blazer', 'clothing', 'Classic Tailored Blazer', 'A versatile tailored layer with a clean, timeless finish.', 5200, 1, 'S–XL', '', '', 'Ask about available colours', 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=85', 8],
+    ['atelier-everyday-set', 'clothing', 'Everyday Style Set', 'An easy-to-wear coordinated look, selected for comfort and style.', 4500, 1, 'S–XL', '', '', 'Limited pieces available', 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=85', 10]
+  ];
+  const salonServices = [
+    ['atelier-hair-soft-waves', 'hair', 'Soft Glam Waves', 'A polished, soft-wave finish styled to suit your occasion.', 1800, 60, 'By appointment · Tue–Sat', 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=85'],
+    ['atelier-hair-knotless-braids', 'hair', 'Knotless Braids', 'Lightweight, neat braids finished with care. Final price may vary by length.', 5500, 240, 'By appointment · Tue–Sat', 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=85'],
+    ['atelier-hair-silk-press', 'hair', 'Silk Press & Finish', 'A smooth, glossy style with a professional finish.', 2500, 120, 'By appointment · Tue–Sat', 'https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&w=800&q=85'],
+    ['atelier-nails-classic-manicure', 'nails', 'Classic Manicure', 'Nail shaping, cuticle care and a clean polish finish.', 1200, 45, 'By appointment · Tue–Sat', 'https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=800&q=85'],
+    ['atelier-nails-gel-finish', 'nails', 'Gel Nail Finish', 'A long-wearing gel colour with careful shaping and finishing.', 2000, 75, 'By appointment · Tue–Sat', 'https://images.unsplash.com/photo-1610992015732-2449b76344bc?auto=format&fit=crop&w=800&q=85'],
+    ['atelier-nails-signature-art', 'nails', 'Signature Nail Art', 'A custom nail-art design with a polished, personal look.', 2800, 90, 'By appointment · Tue–Sat', 'https://images.unsplash.com/photo-1604902396830-aca29e19b067?auto=format&fit=crop&w=800&q=85']
+  ];
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    const insertProduct = database.prepare(`
+      INSERT OR IGNORE INTO products
+        (id, business_type, quantity_unit, name, description, price, min_qty, size, serves, lead, availability, image, stock, status)
+      VALUES (?, ?, 'item', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
+    `);
+    for (const product of clothingProducts) insertProduct.run(...product);
+    const insertService = database.prepare(`
+      INSERT OR IGNORE INTO services
+        (id, business_type, name, description, price, duration_minutes, availability, image, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'published')
+    `);
+    for (const service of salonServices) insertService.run(...service);
+    database.prepare('INSERT INTO app_migrations (name) VALUES (?)').run('starter-commerce-catalog-v1');
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 if (database.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin'").get().count === 0) {
@@ -122,6 +229,7 @@ if (database.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin'")
 const sessions = new Map();
 const loginAttempts = new Map();
 const orderAttempts = new Map();
+const appointmentAttempts = new Map();
 const sessionDuration = 8 * 60 * 60 * 1000;
 const dummyPasswordHash = hashPassword(crypto.randomBytes(24).toString('base64url'));
 
@@ -157,6 +265,7 @@ function safeUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    businessType: user.business_type || 'bakery',
     mustChangePassword: Boolean(user.must_change_password)
   };
 }
@@ -257,7 +366,29 @@ function validateText(value, label, maxLength, required = true) {
   return clean;
 }
 
-function validateProduct(body) {
+function validateFutureDate(value, label) {
+  const date = validateText(value, label, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new HttpError(400, 'Choose a valid future date.', 'INVALID_DATE');
+  }
+  const parsed = new Date(date + 'T00:00:00.000Z');
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || date < new Date().toISOString().slice(0, 10)) {
+    throw new HttpError(400, 'Choose a valid future date.', 'INVALID_DATE');
+  }
+  return date;
+}
+
+const businessTypes = ['bakery', 'clothing', 'hair', 'nails'];
+
+function validateBusinessType(value, allowedTypes = businessTypes) {
+  if (!allowedTypes.includes(value)) {
+    throw new HttpError(400, 'Choose a valid business category.', 'INVALID_BUSINESS_TYPE');
+  }
+  return value;
+}
+
+function validateProduct(body, assignedBusinessType) {
+  const businessType = assignedBusinessType || validateBusinessType(body.businessType || 'bakery', ['bakery', 'clothing']);
   const name = validateText(body.name, 'Product name', 100);
   const description = validateText(body.description || '', 'Description', 1000, false);
   const price = Number(body.price);
@@ -277,6 +408,8 @@ function validateProduct(body) {
     throw new HttpError(400, 'Image URL must use HTTPS.', 'INVALID_INPUT');
   }
   return {
+    businessType,
+    quantityUnit: businessType === 'bakery' ? 'kg' : 'item',
     name,
     description,
     price,
@@ -294,6 +427,8 @@ function productFromRow(row) {
   return {
     id: row.id,
     sellerId: row.seller_id,
+    businessType: row.business_type || 'bakery',
+    quantityUnit: row.quantity_unit || 'kg',
     name: row.name,
     description: row.description,
     price: row.price,
@@ -311,7 +446,7 @@ function productFromRow(row) {
 
 function getProductValues(product) {
   return [
-    product.name, product.description, product.price, product.minQty, product.size,
+    product.businessType, product.quantityUnit, product.name, product.description, product.price, product.minQty, product.size,
     product.serves, product.lead, product.availability, product.image, product.stock
   ];
 }
@@ -319,10 +454,58 @@ function getProductValues(product) {
 function updateProduct(id, product, sellerId) {
   database.prepare(`
     UPDATE products SET
-      name = ?, description = ?, price = ?, min_qty = ?, size = ?, serves = ?,
+      business_type = ?, quantity_unit = ?, name = ?, description = ?, price = ?, min_qty = ?, size = ?, serves = ?,
       lead = ?, availability = ?, image = ?, stock = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND (? IS NULL OR seller_id = ?)
   `).run(...getProductValues(product), id, sellerId, sellerId);
+}
+
+function validateService(body, assignedBusinessType) {
+  const businessType = assignedBusinessType || validateBusinessType(body.businessType, ['hair', 'nails']);
+  const price = Number(body.price);
+  const durationMinutes = Number(body.durationMinutes);
+  if (!Number.isSafeInteger(price) || price < 1 || price > 10000000) {
+    throw new HttpError(400, 'Price must be a whole number greater than zero.', 'INVALID_INPUT');
+  }
+  if (!Number.isSafeInteger(durationMinutes) || durationMinutes < 10 || durationMinutes > 480) {
+    throw new HttpError(400, 'Service duration must be between 10 and 480 minutes.', 'INVALID_INPUT');
+  }
+  const image = validateText(body.image || '', 'Image URL', 500, false);
+  if (image && !/^https:\/\/[^\s"'<>]+$/i.test(image)) {
+    throw new HttpError(400, 'Image URL must use HTTPS.', 'INVALID_INPUT');
+  }
+  return {
+    businessType,
+    name: validateText(body.name, 'Service name', 100),
+    description: validateText(body.description || '', 'Description', 1000, false),
+    price,
+    durationMinutes,
+    availability: validateText(body.availability || '', 'Availability', 120, false),
+    image
+  };
+}
+
+function serviceFromRow(row) {
+  return {
+    id: row.id,
+    sellerId: row.seller_id,
+    businessType: row.business_type,
+    name: row.name,
+    description: row.description,
+    price: row.price,
+    durationMinutes: row.duration_minutes,
+    availability: row.availability,
+    image: row.image,
+    status: row.status,
+    updatedAt: row.updated_at
+  };
+}
+
+function getServiceValues(service) {
+  return [
+    service.businessType, service.name, service.description, service.price,
+    service.durationMinutes, service.availability, service.image
+  ];
 }
 
 function cookieHeader(value, maxAge) {
@@ -341,7 +524,8 @@ async function handleApi(request, response, url) {
   if (route === '/api/public/bootstrap' && method === 'GET') {
     const settings = database.prepare('SELECT store_name, phone, email, tagline FROM settings WHERE id = 1').get();
     const products = database.prepare("SELECT * FROM products WHERE status = 'published' AND stock > 0 ORDER BY created_at, name").all().map(productFromRow);
-    return sendJson(response, 200, { settings, products });
+    const services = database.prepare("SELECT * FROM services WHERE status = 'published' ORDER BY created_at, name").all().map(serviceFromRow);
+    return sendJson(response, 200, { settings, products, services, publicBaseUrl });
   }
 
   if (route === '/api/auth/session' && method === 'GET') {
@@ -363,9 +547,13 @@ async function handleApi(request, response, url) {
     const body = await readJson(request);
     const email = validateText(body.email, 'Email', 254).toLowerCase();
     const password = validateText(body.password, 'Password', 200);
+    const requestedRole = body.role == null ? null : validateText(body.role, 'Account type', 20);
+    if (requestedRole && !['admin', 'seller'].includes(requestedRole)) {
+      throw new HttpError(400, 'Choose Admin or Seller sign-in.', 'INVALID_ROLE');
+    }
     const user = database.prepare('SELECT * FROM users WHERE email = ? AND active = 1').get(email);
     const passwordMatches = verifyPassword(password, user ? user.password_hash : dummyPasswordHash);
-    if (!user || !passwordMatches) {
+    if (!user || !passwordMatches || (requestedRole && user.role !== requestedRole)) {
       attempt.count += 1;
       loginAttempts.set(ip, attempt);
       throw new HttpError(401, 'Email or password is incorrect.', 'LOGIN_INVALID');
@@ -416,7 +604,7 @@ async function handleApi(request, response, url) {
       attempt.count = 0;
       attempt.resetAt = Date.now() + 15 * 60 * 1000;
     }
-    if (attempt.count >= 8) throw new HttpError(429, 'Too many order requests. Please contact the bakery directly.', 'ORDER_RATE_LIMIT');
+    if (attempt.count >= 8) throw new HttpError(429, 'Too many order requests. Please contact the seller directly.', 'ORDER_RATE_LIMIT');
     attempt.count += 1;
     orderAttempts.set(ip, attempt);
     const body = await readJson(request);
@@ -428,12 +616,9 @@ async function handleApi(request, response, url) {
     const email = validateText(body.email || '', 'Email', 254, false);
     const quantity = Number(body.quantity);
     if (!Number.isSafeInteger(quantity) || quantity < product.min_qty || quantity > 100) {
-      throw new HttpError(400, `Quantity must be between ${product.min_qty} and 100 kg.`, 'INVALID_QUANTITY');
+      throw new HttpError(400, `Quantity must be between ${product.min_qty} and 100 ${product.quantity_unit}.`, 'INVALID_QUANTITY');
     }
-    const collectionDate = validateText(body.date, 'Collection date', 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(collectionDate) || collectionDate < new Date().toISOString().slice(0, 10)) {
-      throw new HttpError(400, 'Choose a valid future collection date.', 'INVALID_DATE');
-    }
+    const collectionDate = validateFutureDate(body.date, 'Collection date');
     const notes = validateText(body.notes || '', 'Order notes', 1000, false);
     const id = makeId('ord');
     const total = product.price * quantity;
@@ -445,15 +630,64 @@ async function handleApi(request, response, url) {
       `).run(quantity, product.id, quantity);
       if (!stockResult.changes) throw new HttpError(409, 'There is not enough stock for that quantity.', 'INSUFFICIENT_STOCK');
       database.prepare(`
-        INSERT INTO orders (id, customer, phone, email, product_id, cake, quantity, collection_date, notes, total)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, customer, phone, email, product.id, product.name, quantity, collectionDate, notes, total);
+        INSERT INTO orders (id, customer, phone, email, product_id, business_type, quantity_unit, cake, quantity, collection_date, notes, total)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, customer, phone, email, product.id, product.business_type, product.quantity_unit, product.name, quantity, collectionDate, notes, total);
       database.exec('COMMIT');
     } catch (error) {
       database.exec('ROLLBACK');
       throw error;
     }
     return sendJson(response, 201, { ok: true, orderId: id });
+  }
+
+  if (route === '/api/appointments' && method === 'POST') {
+    requireSameOrigin(request);
+    const ip = request.socket.remoteAddress || 'unknown';
+    const attempt = appointmentAttempts.get(ip) || { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
+    if (attempt.resetAt <= Date.now()) {
+      attempt.count = 0;
+      attempt.resetAt = Date.now() + 15 * 60 * 1000;
+    }
+    if (attempt.count >= 8) throw new HttpError(429, 'Too many appointment requests. Please contact the salon directly.', 'APPOINTMENT_RATE_LIMIT');
+    attempt.count += 1;
+    appointmentAttempts.set(ip, attempt);
+    const body = await readJson(request);
+    const serviceId = validateText(body.serviceId, 'Service', 80);
+    const service = database.prepare("SELECT * FROM services WHERE id = ? AND status = 'published'").get(serviceId);
+    if (!service) throw new HttpError(404, 'This service is no longer available.', 'SERVICE_UNAVAILABLE');
+    const customer = validateText(body.customer, 'Name', 100);
+    const phone = validateText(body.phone, 'Phone number', 40);
+    const email = validateText(body.email || '', 'Email', 254, false);
+    const date = validateFutureDate(body.date, 'Appointment date');
+    const time = validateText(body.time, 'Appointment time', 5);
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+      throw new HttpError(400, 'Choose a valid appointment time.', 'INVALID_TIME');
+    }
+    const notes = validateText(body.notes || '', 'Appointment notes', 1000, false);
+    const requestedStart = Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+    const requestedEnd = requestedStart + service.duration_minutes;
+    if (requestedEnd > 24 * 60) throw new HttpError(400, 'Choose a start time that leaves room for the full service.', 'INVALID_TIME');
+    const sellerAppointments = database.prepare(`
+      SELECT a.appointment_time, s.duration_minutes
+      FROM appointments a
+      JOIN services s ON s.id = a.service_id
+      WHERE (s.seller_id = ? OR (s.seller_id IS NULL AND ? IS NULL AND s.business_type = ?))
+        AND a.appointment_date = ? AND a.status != 'Cancelled'
+    `).all(service.seller_id, service.seller_id, service.business_type, date);
+    const overlaps = sellerAppointments.some(appointment => {
+      const start = Number(appointment.appointment_time.slice(0, 2)) * 60 + Number(appointment.appointment_time.slice(3, 5));
+      const end = start + appointment.duration_minutes;
+      return requestedStart < end && start < requestedEnd;
+    });
+    if (overlaps) throw new HttpError(409, 'That stylist is already booked at this time. Choose another time.', 'TIME_UNAVAILABLE');
+    const id = makeId('apt');
+    database.prepare(`
+      INSERT INTO appointments
+        (id, service_id, business_type, service_name, customer, phone, email, appointment_date, appointment_time, notes, total)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, service.id, service.business_type, service.name, customer, phone, email, date, time, notes, service.price);
+    return sendJson(response, 201, { ok: true, appointmentId: id });
   }
 
   if (route === '/api/admin/summary' && method === 'GET') {
@@ -467,6 +701,7 @@ async function handleApi(request, response, url) {
     const products = database.prepare("SELECT COUNT(*) AS count FROM products WHERE status = 'published' AND stock > 0").get().count;
     const pending = database.prepare("SELECT COUNT(*) AS count FROM submissions WHERE status = 'pending'").get().count;
     const sellers = database.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'seller' AND active = 1").get().count;
+    const appointments = database.prepare("SELECT COUNT(*) AS count FROM appointments WHERE status IN ('New', 'Confirmed')").get().count;
     const latestOrders = database.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT 5').all();
     return sendJson(response, 200, {
       orders: Number(summary.order_count || 0),
@@ -475,6 +710,7 @@ async function handleApi(request, response, url) {
       products,
       pending,
       sellers,
+      appointments,
       latestOrders
     });
   }
@@ -487,7 +723,7 @@ async function handleApi(request, response, url) {
   if (route === '/api/admin/orders.csv' && method === 'GET') {
     requireSession(request, ['admin']);
     const orders = database.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
-    const columns = ['id', 'customer', 'phone', 'email', 'cake', 'quantity', 'collection_date', 'total', 'status', 'notes', 'created_at'];
+    const columns = ['id', 'customer', 'phone', 'email', 'business_type', 'cake', 'quantity', 'quantity_unit', 'collection_date', 'total', 'status', 'notes', 'created_at'];
     const csv = [columns.map(csvCell).join(','), ...orders.map(order => columns.map(column => csvCell(order[column])).join(','))].join('\r\n');
     response.writeHead(200, {
       'Content-Type': 'text/csv; charset=utf-8',
@@ -512,6 +748,28 @@ async function handleApi(request, response, url) {
     return sendJson(response, 200, { ok: true });
   }
 
+  if (route === '/api/admin/appointments' && method === 'GET') {
+    requireSession(request, ['admin']);
+    return sendJson(response, 200, {
+      appointments: database.prepare('SELECT * FROM appointments ORDER BY appointment_date, appointment_time, created_at').all()
+    });
+  }
+
+  const appointmentStatusRoute = route.match(/^\/api\/admin\/appointments\/([^/]+)$/);
+  if (appointmentStatusRoute && method === 'PATCH') {
+    const session = requireSession(request, ['admin']);
+    requireCsrf(request, session);
+    const body = await readJson(request);
+    const status = validateText(body.status, 'Appointment status', 30);
+    if (!['New', 'Confirmed', 'Completed', 'Cancelled'].includes(status)) {
+      throw new HttpError(400, 'Choose a valid appointment status.', 'INVALID_STATUS');
+    }
+    const result = database.prepare('UPDATE appointments SET status = ? WHERE id = ?')
+      .run(status, decodeURIComponent(appointmentStatusRoute[1]));
+    if (!result.changes) throw new HttpError(404, 'Appointment not found.', 'APPOINTMENT_NOT_FOUND');
+    return sendJson(response, 200, { ok: true });
+  }
+
   if (route === '/api/admin/products' && method === 'GET') {
     requireSession(request, ['admin']);
     return sendJson(response, 200, { products: database.prepare('SELECT * FROM products ORDER BY created_at, name').all().map(productFromRow) });
@@ -523,8 +781,8 @@ async function handleApi(request, response, url) {
     const product = validateProduct(await readJson(request));
     const id = makeId('prd');
     database.prepare(`
-      INSERT INTO products (id, name, description, price, min_qty, size, serves, lead, availability, image, stock, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
+      INSERT INTO products (id, business_type, quantity_unit, name, description, price, min_qty, size, serves, lead, availability, image, stock, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
     `).run(id, ...getProductValues(product));
     return sendJson(response, 201, { product: productFromRow(database.prepare('SELECT * FROM products WHERE id = ?').get(id)) });
   }
@@ -537,11 +795,59 @@ async function handleApi(request, response, url) {
     if (!database.prepare('SELECT id FROM products WHERE id = ?').get(id)) throw new HttpError(404, 'Product not found.', 'PRODUCT_NOT_FOUND');
     const product = validateProduct(await readJson(request));
     database.prepare(`
-      UPDATE products SET name = ?, description = ?, price = ?, min_qty = ?, size = ?,
+      UPDATE products SET business_type = ?, quantity_unit = ?, name = ?, description = ?, price = ?, min_qty = ?, size = ?,
         serves = ?, lead = ?, availability = ?, image = ?, stock = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(...getProductValues(product), id);
     return sendJson(response, 200, { product: productFromRow(database.prepare('SELECT * FROM products WHERE id = ?').get(id)) });
+  }
+
+  if (route === '/api/admin/services' && method === 'GET') {
+    requireSession(request, ['admin']);
+    return sendJson(response, 200, {
+      services: database.prepare('SELECT * FROM services ORDER BY business_type, name').all().map(serviceFromRow)
+    });
+  }
+
+  if (route === '/api/admin/services' && method === 'POST') {
+    const session = requireSession(request, ['admin']);
+    requireCsrf(request, session);
+    const service = validateService(await readJson(request));
+    const id = makeId('svc');
+    database.prepare(`
+      INSERT INTO services (id, business_type, name, description, price, duration_minutes, availability, image, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'published')
+    `).run(id, ...getServiceValues(service));
+    return sendJson(response, 201, { service: serviceFromRow(database.prepare('SELECT * FROM services WHERE id = ?').get(id)) });
+  }
+
+  const serviceRoute = route.match(/^\/api\/admin\/services\/([^/]+)$/);
+  if (serviceRoute && method === 'PATCH') {
+    const session = requireSession(request, ['admin']);
+    requireCsrf(request, session);
+    const id = decodeURIComponent(serviceRoute[1]);
+    if (!database.prepare('SELECT id FROM services WHERE id = ?').get(id)) {
+      throw new HttpError(404, 'Service not found.', 'SERVICE_NOT_FOUND');
+    }
+    const service = validateService(await readJson(request));
+    database.prepare(`
+      UPDATE services SET business_type = ?, name = ?, description = ?, price = ?, duration_minutes = ?,
+        availability = ?, image = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(...getServiceValues(service), id);
+    return sendJson(response, 200, { service: serviceFromRow(database.prepare('SELECT * FROM services WHERE id = ?').get(id)) });
+  }
+
+  const serviceVisibilityRoute = route.match(/^\/api\/admin\/services\/([^/]+)\/visibility$/);
+  if (serviceVisibilityRoute && method === 'PATCH') {
+    const session = requireSession(request, ['admin']);
+    requireCsrf(request, session);
+    const body = await readJson(request);
+    if (!['published', 'hidden'].includes(body.status)) throw new HttpError(400, 'Choose a valid service visibility.', 'INVALID_STATUS');
+    const result = database.prepare('UPDATE services SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(body.status, decodeURIComponent(serviceVisibilityRoute[1]));
+    if (!result.changes) throw new HttpError(404, 'Service not found.', 'SERVICE_NOT_FOUND');
+    return sendJson(response, 200, { ok: true });
   }
 
   if (productRoute && method === 'DELETE') {
@@ -586,7 +892,7 @@ async function handleApi(request, response, url) {
   if (route === '/api/admin/sellers' && method === 'GET') {
     requireSession(request, ['admin']);
     const sellers = database.prepare(`
-      SELECT u.id, u.name, u.email, u.active, u.created_at,
+      SELECT u.id, u.name, u.email, u.business_type, u.active, u.created_at,
         (SELECT COUNT(*) FROM submissions s WHERE s.seller_id = u.id AND s.status = 'pending') AS pending_count
       FROM users u WHERE u.role = 'seller' ORDER BY u.created_at DESC
     `).all();
@@ -599,15 +905,16 @@ async function handleApi(request, response, url) {
     const body = await readJson(request);
     const name = validateText(body.name, 'Seller name', 100);
     const email = validateText(body.email, 'Seller email', 254).toLowerCase();
+    const businessType = validateBusinessType(body.businessType);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Enter a valid seller email.', 'INVALID_EMAIL');
     const temporaryPassword = crypto.randomBytes(15).toString('base64url');
     try {
       const result = database.prepare(`
-        INSERT INTO users (name, email, password_hash, role, must_change_password)
-        VALUES (?, ?, ?, 'seller', 1)
-      `).run(name, email, hashPassword(temporaryPassword));
+        INSERT INTO users (name, email, password_hash, role, business_type, must_change_password)
+        VALUES (?, ?, ?, 'seller', ?, 1)
+      `).run(name, email, hashPassword(temporaryPassword), businessType);
       return sendJson(response, 201, {
-        seller: { id: Number(result.lastInsertRowid), name, email, active: 1 },
+        seller: { id: Number(result.lastInsertRowid), name, email, businessType, active: 1 },
         temporaryPassword
       });
     } catch (error) {
@@ -669,17 +976,36 @@ async function handleApi(request, response, url) {
     const submission = database.prepare("SELECT * FROM submissions WHERE id = ? AND status = 'pending'").get(decodeURIComponent(decisionRoute[1]));
     if (!submission) throw new HttpError(404, 'Pending submission not found.', 'SUBMISSION_NOT_FOUND');
     if (body.decision === 'approve') {
-      const product = validateProduct(JSON.parse(submission.data_json));
-      if (submission.product_id) {
-        const existing = database.prepare('SELECT id FROM products WHERE id = ? AND seller_id = ?').get(submission.product_id, submission.seller_id);
-        if (!existing) throw new HttpError(409, 'The seller product no longer exists.', 'PRODUCT_NOT_FOUND');
-        updateProduct(submission.product_id, product, submission.seller_id);
+      if (submission.item_type === 'service') {
+        const service = validateService(JSON.parse(submission.data_json), submission.business_type);
+        if (submission.service_id) {
+          const existing = database.prepare('SELECT id FROM services WHERE id = ? AND seller_id = ?').get(submission.service_id, submission.seller_id);
+          if (!existing) throw new HttpError(409, 'The seller service no longer exists.', 'SERVICE_NOT_FOUND');
+          database.prepare(`
+            UPDATE services SET business_type = ?, name = ?, description = ?, price = ?,
+              duration_minutes = ?, availability = ?, image = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND seller_id = ?
+          `).run(...getServiceValues(service), submission.service_id, submission.seller_id);
+        } else {
+          const id = makeId('svc');
+          database.prepare(`
+            INSERT INTO services (id, seller_id, business_type, name, description, price, duration_minutes, availability, image, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
+          `).run(id, submission.seller_id, ...getServiceValues(service));
+        }
       } else {
-        const id = makeId('prd');
-        database.prepare(`
-          INSERT INTO products (id, seller_id, name, description, price, min_qty, size, serves, lead, availability, image, stock, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
-        `).run(id, submission.seller_id, ...getProductValues(product));
+        const product = validateProduct(JSON.parse(submission.data_json), submission.business_type);
+        if (submission.product_id) {
+          const existing = database.prepare('SELECT id FROM products WHERE id = ? AND seller_id = ?').get(submission.product_id, submission.seller_id);
+          if (!existing) throw new HttpError(409, 'The seller product no longer exists.', 'PRODUCT_NOT_FOUND');
+          updateProduct(submission.product_id, product, submission.seller_id);
+        } else {
+          const id = makeId('prd');
+          database.prepare(`
+            INSERT INTO products (id, seller_id, business_type, quantity_unit, name, description, price, min_qty, size, serves, lead, availability, image, stock, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
+          `).run(id, submission.seller_id, ...getProductValues(product));
+        }
       }
     }
     database.prepare(`
@@ -691,24 +1017,41 @@ async function handleApi(request, response, url) {
   if (route === '/api/seller/portal' && method === 'GET') {
     const session = requireSession(request, ['seller']);
     const products = database.prepare('SELECT * FROM products WHERE seller_id = ? ORDER BY name').all(session.user.id).map(productFromRow);
+    const services = database.prepare('SELECT * FROM services WHERE seller_id = ? ORDER BY name').all(session.user.id).map(serviceFromRow);
     const submissions = database.prepare('SELECT * FROM submissions WHERE seller_id = ? ORDER BY created_at DESC LIMIT 50').all(session.user.id)
       .map(row => ({ ...row, data: JSON.parse(row.data_json) }));
-    return sendJson(response, 200, { products, submissions });
+    return sendJson(response, 200, { products, services, submissions });
   }
 
   if (route === '/api/seller/submissions' && method === 'POST') {
     const session = requireSession(request, ['seller']);
     requireCsrf(request, session);
     const body = await readJson(request);
-    const product = validateProduct(body);
-    const productId = body.productId ? validateText(body.productId, 'Product ID', 80) : null;
-    if (productId && !database.prepare('SELECT id FROM products WHERE id = ? AND seller_id = ?').get(productId, session.user.id)) {
-      throw new HttpError(404, 'You can only submit changes to your own products.', 'PRODUCT_NOT_FOUND');
+    const itemType = body.itemType === 'service' ? 'service' : 'product';
+    const businessType = session.user.businessType;
+    let data;
+    let productId = null;
+    let serviceId = null;
+    if (itemType === 'service') {
+      if (!['hair', 'nails'].includes(businessType)) throw new HttpError(403, 'Only hair and nail sellers can submit services.', 'CATEGORY_FORBIDDEN');
+      data = validateService(body, businessType);
+      serviceId = body.serviceId ? validateText(body.serviceId, 'Service ID', 80) : null;
+      if (serviceId && !database.prepare('SELECT id FROM services WHERE id = ? AND seller_id = ?').get(serviceId, session.user.id)) {
+        throw new HttpError(404, 'You can only submit changes to your own services.', 'SERVICE_NOT_FOUND');
+      }
+    } else {
+      if (!['bakery', 'clothing'].includes(businessType)) throw new HttpError(403, 'Only bakery and clothing sellers can submit products.', 'CATEGORY_FORBIDDEN');
+      data = validateProduct(body, businessType);
+      productId = body.productId ? validateText(body.productId, 'Product ID', 80) : null;
+      if (productId && !database.prepare('SELECT id FROM products WHERE id = ? AND seller_id = ?').get(productId, session.user.id)) {
+        throw new HttpError(404, 'You can only submit changes to your own products.', 'PRODUCT_NOT_FOUND');
+      }
     }
     const id = makeId('sub');
     database.prepare(`
-      INSERT INTO submissions (id, seller_id, product_id, data_json) VALUES (?, ?, ?, ?)
-    `).run(id, session.user.id, productId, JSON.stringify(product));
+      INSERT INTO submissions (id, seller_id, business_type, item_type, product_id, service_id, data_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, session.user.id, businessType, itemType, productId, serviceId, JSON.stringify(data));
     return sendJson(response, 201, { ok: true, submissionId: id });
   }
 
@@ -722,7 +1065,7 @@ function setSecurityHeaders(response) {
   response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'"
+    "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'"
   );
 }
 
@@ -732,12 +1075,13 @@ const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
     if (url.pathname.startsWith('/api/')) return await handleApi(request, response, url);
     if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, 'Method not allowed.', 'METHOD_NOT_ALLOWED');
-    if (url.pathname !== '/' && url.pathname !== '/index.html' && url.pathname !== '/seller' && url.pathname !== '/app.js') {
+    if (url.pathname !== '/' && url.pathname !== '/index.html' && url.pathname !== '/login' && url.pathname !== '/seller' && url.pathname !== '/app.js') {
       throw new HttpError(404, 'Page not found.', 'NOT_FOUND');
     }
     const publicFiles = {
       '/': { file: 'index.html', type: 'text/html; charset=utf-8' },
       '/index.html': { file: 'index.html', type: 'text/html; charset=utf-8' },
+      '/login': { file: 'index.html', type: 'text/html; charset=utf-8' },
       '/seller': { file: 'index.html', type: 'text/html; charset=utf-8' },
       '/app.js': { file: 'app.js', type: 'text/javascript; charset=utf-8' }
     };
